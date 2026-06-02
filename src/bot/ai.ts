@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logger } from "../lib/logger.js";
 
 const groq = new Groq({ apiKey: process.env["GROQ_API_KEY"] });
 const genAI = new GoogleGenerativeAI(process.env["GEMINI_API_KEY"] ?? "");
@@ -39,10 +40,12 @@ async function callGemini(system: string, user: string): Promise<string> {
 async function callAI(system: string, user: string, maxTokens = 2048): Promise<string> {
   try {
     return await callGroq(system, user, maxTokens);
-  } catch {
+  } catch (groqErr) {
+    logger.warn({ err: groqErr }, "Groq failed, falling back to Gemini");
     try {
       return await callGemini(system, user);
-    } catch {
+    } catch (geminiErr) {
+      logger.error({ groqErr, geminiErr }, "Both Groq and Gemini failed");
       return "AIサービスに接続できませんでした。しばらくしてから再試行してください。";
     }
   }
@@ -65,7 +68,8 @@ export async function getAIResponse(
       temperature: 0.7,
     });
     return res.choices[0]?.message?.content ?? "応答を生成できませんでした。";
-  } catch {
+  } catch (groqErr) {
+    logger.warn({ err: groqErr }, "Groq chat failed, falling back to Gemini");
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const chat = model.startChat({
@@ -77,7 +81,8 @@ export async function getAIResponse(
       });
       const r = await chat.sendMessage(userMessage);
       return r.response.text() ?? "応答を生成できませんでした。";
-    } catch {
+    } catch (geminiErr) {
+      logger.error({ groqErr, geminiErr }, "Both Groq and Gemini failed for chat");
       return "AIサービスに接続できませんでした。しばらくしてから再試行してください。";
     }
   }
