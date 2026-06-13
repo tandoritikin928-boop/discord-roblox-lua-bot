@@ -88,8 +88,8 @@ export async function searchScript(query: string, max = 20): Promise<ScriptResul
   return scripts.map(parseListScript);
 }
 
-export async function fetchLatestScripts(page = 1): Promise<ScriptResult[]> {
-  const url = `${BASE}/api/script/fetch?page=${page}&max=10`;
+export async function fetchLatestScripts(page = 1, max = 10): Promise<ScriptResult[]> {
+  const url = `${BASE}/api/script/fetch?page=${page}&max=${max}`;
   const res = await axios.get(url, { timeout: 10000 });
   const scripts: Record<string, unknown>[] = res.data?.result?.scripts ?? [];
   return scripts.map(parseListScript);
