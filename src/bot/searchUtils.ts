@@ -27,6 +27,14 @@ let _aiChannelId: string | null = null;
 export function getAiChannelId(): string | null { return _aiChannelId; }
 export function setAiChannelId(id: string | null): void { _aiChannelId = id; }
 
+let _notifyChannelId: string | null = null;
+export function getNotifyChannelId(): string | null { return _notifyChannelId; }
+export function setNotifyChannelId(id: string | null): void { _notifyChannelId = id; }
+
+let _notifyEnabled: boolean = true;
+export function isNotifyEnabled(): boolean { return _notifyEnabled; }
+export function setNotifyEnabled(enabled: boolean): void { _notifyEnabled = enabled; }
+
 const translationCache = new Map<string, string>();
 
 export async function enrichScript(s: ScriptResult): Promise<ScriptResult> {
