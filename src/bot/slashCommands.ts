@@ -21,9 +21,18 @@ import {
   type SearchSession,
 } from "./searchUtils.js";
 
-const ALLOWED_GUILD = "1490495338296115364";
-const ALLOWED_CHANNEL = "1510354846111371377";
-const AI_CHANNEL = "1511176152964923493";
+const ALLOWED_GUILDS = [
+  "1490495338296115364",
+  "1476104535683371202"
+];
+const ALLOWED_CHANNEL = [
+  "1510354846111371377",
+  "1515385929584480316"
+];
+const AI_CHANNEL = [
+  "1511176152964923493",
+  "1515385854686789682"                 
+];
 
 export const commandDefinitions = [
   new SlashCommandBuilder()
@@ -183,9 +192,13 @@ export async function handleSlashCommand(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
   const { commandName, guildId, channelId } = interaction;
-  const inGuild = guildId === ALLOWED_GUILD;
-  const inAllowed = inGuild && channelId === ALLOWED_CHANNEL;
-  const inAI = inGuild && channelId === AI_CHANNEL;
+  const inGuild = guildId ? ALLOWED_GUILDS.includes(guildId) : false;
+  const inAllowed =
+    inGuild &&
+    ALLOWED_CHANNELS.includes(channelId);
+  const inAI =
+    inGuild &&
+    AI_CHANNELS.includes(channelId);
 
   if (commandName === "status") {
     await interaction.reply({
