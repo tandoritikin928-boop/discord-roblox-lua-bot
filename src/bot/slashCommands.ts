@@ -117,7 +117,15 @@ export async function registerSlashCommands(clientId: string): Promise<void> {
 
   const rest = new REST({ version: "10" }).setToken(token);
 
-  // 全許可サーバーにコマンドを登録
+  // グローバルコマンドを空にして重複を防ぐ
+  try {
+    await rest.put(Routes.applicationCommands(clientId), { body: [] });
+    logger.info("Global slash commands cleared (prevents duplicates)");
+  } catch (err) {
+    logger.warn({ err }, "Could not clear global commands");
+  }
+
+  // 全許可サーバーにギルドコマンドとして登録
   for (const guildId of ALLOWED_GUILDS) {
     try {
       await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
@@ -127,17 +135,6 @@ export async function registerSlashCommands(clientId: string): Promise<void> {
     } catch (err) {
       logger.warn({ err, guildId }, "Guild slash commands failed for guild");
     }
-  }
-
-  // グローバル登録をフォールバックとして試みる
-  try {
-    await rest.put(Routes.applicationCommands(clientId), { body: commandDefinitions });
-    logger.info("Slash commands registered (global — may take up to 1 hour)");
-  } catch (err) {
-    logger.error({ err }, "Slash command global registration failed");
-    logger.info(
-      `Re-invite URL with correct scope: https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot%20applications.commands`,
-    );
   }
 }
 
@@ -176,7 +173,6 @@ function makeSession(
   return { allResults: all, filtered, index: 0, query, filters };
 }
 
-// ファイル添付またはテキストからコードを取得する
 async function resolveCode(interaction: ChatInputCommandInteraction): Promise<string | null> {
   const attachment = interaction.options.getAttachment("file");
   if (attachment) {
@@ -206,12 +202,8 @@ export async function handleSlashCommand(
 ): Promise<void> {
   const { commandName, guildId, channelId } = interaction;
   const inGuild = guildId ? ALLOWED_GUILDS.includes(guildId) : false;
-  const inAllowed =
-    inGuild &&
-    ALLOWED_CHANNEL.includes(channelId);
-  const inAI =
-    inGuild &&
-    AI_CHANNEL.includes(channelId);
+  const inAllowed = inGuild && ALLOWED_CHANNEL.includes(channelId);
+  const inAI = inGuild && AI_CHANNEL.includes(channelId);
 
   if (commandName === "status") {
     await interaction.reply({
@@ -249,6 +241,7 @@ export async function handleSlashCommand(
     });
     return;
   }
+
   if (commandName === "aioff") {
     setAiChannelId(null);
     await interaction.reply({
@@ -263,7 +256,6 @@ export async function handleSlashCommand(
     return;
   }
 
-  // ─── 通知コマンド ──────────────────────────────────────────────────────────
   if (commandName === "notifyon") {
     setNotifyChannelId(channelId);
     setNotifyEnabled(true);
@@ -282,6 +274,7 @@ export async function handleSlashCommand(
     });
     return;
   }
+
   if (commandName === "notifyoff") {
     setNotifyEnabled(false);
     setNotifyChannelId(null);
@@ -299,7 +292,10 @@ export async function handleSlashCommand(
 
   if (commandName === "aichat") {
     if (!inAI) {
-      await interaction.reply({ content: `AIコマンドは ${AI_CHANNEL.map(id => `<#${id}>`).join(" か ")} でのみ使用できます。`, flags: MessageFlags.Ephemeral });
+      await interaction.reply({
+        content: `AIコマンドは ${AI_CHANNEL.map(id => `<#${id}>`).join(" か ")} でのみ使用できます。`,
+        flags: MessageFlags.Ephemeral,
+      });
       return;
     }
     const question = interaction.options.getString("question", true);
@@ -313,7 +309,6 @@ export async function handleSlashCommand(
 
   if (["obfuscate", "deobfuscate", "explain", "fix"].includes(commandName)) {
     await interaction.deferReply();
-
     const code = await resolveCode(interaction);
     if (code === null) return;
 
